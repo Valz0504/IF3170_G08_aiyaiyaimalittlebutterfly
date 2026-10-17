@@ -1,7 +1,10 @@
 import argparse
+from inspect import signature
+from pathlib import Path
 from random import Random
 
-from .experiments import load_problem, load_state, save_state
+from .algorithms import ALGORITHMS
+from .experiments import load_problem, load_state, save_result, save_state
 from .models import Problem, State
 from .problem import generate_initial_state, loaded_weight, score
 from .validation import is_inside
@@ -32,6 +35,18 @@ def main() -> None:
     visualize.add_argument("--output", help="Simpan gambar, misalnya output/scratch/initial.png.")
     visualize.add_argument("--title", default="State paket")
     visualize.add_argument("--show", action="store_true", help="Buka jendela gambar meskipun memakai --output.")
+    run = commands.add_parser("run", help="Jalankan satu algoritma dan simpan hasil (implementasi algoritma menyusul).")
+    run.add_argument("input", help="Path dataset JSON.")
+    run.add_argument("--algorithm", choices=ALGORITHMS, required=True)
+    run.add_argument("--seed", type=int, default=11)
+    run.add_argument("--output", required=True, help="Direktori hasil baru, tidak boleh sudah ada.")
+    run.add_argument("--plots", action="store_true", help="Sertakan gambar state dan history; membutuhkan Matplotlib.")
+    run.add_argument("--max-iterations", type=int, default=argparse.SUPPRESS, help="HC/SA: batas iterasi.")
+    run.add_argument("--initial-temperature", type=float, default=argparse.SUPPRESS, help="SA: suhu awal.")
+    run.add_argument("--cooling-rate", type=float, default=argparse.SUPPRESS, help="SA: faktor penurunan suhu.")
+    run.add_argument("--min-temperature", type=float, default=argparse.SUPPRESS, help="SA: batas suhu minimum.")
+    run.add_argument("--population-size", type=int, default=argparse.SUPPRESS, help="GA: jumlah individu.")
+    run.add_argument("--generations", type=int, default=argparse.SUPPRESS, help="GA: jumlah generasi.")
     args = parser.parse_args()
 
     try:
@@ -46,6 +61,40 @@ def main() -> None:
         elif args.command == "validate":
             problem, state = load_state(args.state)
             _print_summary(problem, state)
+        elif args.command == "run":
+            solve = ALGORITHMS[args.algorithm]
+            parameters = {key: value for key, value in vars(args).items() if key in (
+                "max_iterations", "initial_temperature", "cooling_rate",
+                "min_temperature", "population_size", "generations",
+            )}
+            try:
+                signature(solve).bind(None, seed=args.seed, **parameters)
+            except TypeError as error:
+                parser.error(f"Parameter tidak sesuai untuk {args.algorithm}: {error}")
+            for name in ("max_iterations", "population_size", "generations"):
+                if name in parameters and parameters[name] <= 0:
+                    parser.error(f"{name} harus lebih besar dari 0.")
+            for name in ("initial_temperature", "min_temperature"):
+                if name in parameters and not 0 < parameters[name] < float("inf"):
+                    parser.error(f"{name} harus positif dan berhingga.")
+            if "cooling_rate" in parameters and not 0 < parameters["cooling_rate"] < 1:
+                parser.error("cooling_rate harus berada di antara 0 dan 1.")
+            if args.algorithm == "sa" and parameters.get("min_temperature", 0.001) >= parameters.get("initial_temperature", 100.0):
+                parser.error("min_temperature harus lebih kecil dari initial_temperature.")
+            if Path(args.output).exists():
+                parser.error("Direktori output sudah ada. Pilih direktori baru.")
+            if args.plots:
+                try:
+                    import matplotlib
+                except ModuleNotFoundError:
+                    parser.error("Instal Matplotlib terlebih dahulu: python -m pip install -r requirements.txt")
+            problem = load_problem(args.input)
+            result = solve(problem, seed=args.seed, **parameters)
+            save_result(args.output, problem, result, plots=args.plots)
+            _print_summary(problem, result.final_state)
+            print(f"Iterasi: {result.iterations}; durasi: {result.duration_seconds:.3f} s")
+            print(f"Berhenti: {result.stop_reason}")
+            print(f"Hasil disimpan: {args.output}")
         else:
             problem, state = load_state(args.state)
             try:
@@ -69,7 +118,7 @@ def main() -> None:
                 plt.close(figure)
     except FileExistsError:
         parser.error("File output sudah ada. Pilih path baru agar hasil lama tetap tersimpan.")
-    except (ValueError, OSError) as error:
+    except (ValueError, OSError, NotImplementedError) as error:
         parser.error(str(error))
 
 

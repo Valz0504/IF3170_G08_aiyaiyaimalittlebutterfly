@@ -1,8 +1,11 @@
+import csv
 import json
-from dataclasses import asdict
+from dataclasses import asdict, fields
+from math import isfinite
 from pathlib import Path
+from shutil import rmtree
 
-from .models import Dimensions, Package, Placement, Problem, State, Truck
+from .models import Dimensions, Package, Placement, Problem, SearchResult, State, Truck
 from .problem import score
 
 
@@ -104,3 +107,115 @@ def load_state(path: str | Path) -> tuple[Problem, State]:
     if snapshot["score"] != score(problem, state):
         raise ValueError("Score snapshot tidak sesuai dengan state.")
     return problem, state
+
+
+def _validate_result(problem: Problem, result: SearchResult) -> None:
+    if not isinstance(result, SearchResult):
+        raise ValueError("Algoritma harus mengembalikan SearchResult.")
+    for name in ("algorithm", "stop_reason"):
+        if not isinstance(getattr(result, name), str) or not getattr(result, name).strip():
+            raise ValueError(f"{name} harus berupa string yang tidak kosong.")
+    if type(result.seed) is not int:
+        raise ValueError("Seed hasil harus berupa integer.")
+    if type(result.iterations) is not int or result.iterations < 0:
+        raise ValueError("Jumlah iterasi harus berupa integer nonnegatif.")
+    if type(result.duration_seconds) not in (int, float) or not isfinite(result.duration_seconds) or result.duration_seconds < 0:
+        raise ValueError("Durasi harus berupa angka berhingga nonnegatif.")
+    states = [result.initial_state, result.final_state]
+    if result.best_state is not None:
+        states.append(result.best_state)
+    for population in (result.initial_population, result.final_population):
+        if population is not None:
+            if not isinstance(population, list) or not population:
+                raise ValueError("Populasi hasil harus berupa list state yang tidak kosong.")
+            states.extend(population)
+    for state in states:
+        if not isinstance(state, State):
+            raise ValueError("State hasil harus berupa State.")
+        score(problem, state)
+    if type(result.final_score) not in (int, float) or result.final_score != score(problem, result.final_state):
+        raise ValueError("final_score tidak sesuai dengan final_state.")
+    if not isinstance(result.parameters, dict) or not isinstance(result.metrics, dict):
+        raise ValueError("parameters dan metrics harus berupa dictionary.")
+    if not isinstance(result.history, list) or not result.history:
+        raise ValueError("History harus berisi data sejak iterasi 0.")
+    previous = -1
+    for row in result.history:
+        if not isinstance(row, dict) or any(not isinstance(key, str) for key in row):
+            raise ValueError("Baris history harus berupa dictionary dengan key string.")
+        iteration = row.get("iteration")
+        if type(iteration) is not int or iteration <= previous:
+            raise ValueError("Nomor iterasi history harus integer nonnegatif dan meningkat.")
+        if any(value is not None and type(value) not in (str, int, float, bool) for value in row.values()):
+            raise ValueError("Nilai kolom history harus berupa angka, boolean, string, atau None.")
+        previous = iteration
+    if result.history[0]["iteration"] != 0 or previous != result.iterations:
+        raise ValueError("History harus dimulai dari 0 dan berakhir pada result.iterations.")
+
+
+def result_to_dict(problem: Problem, result: SearchResult) -> dict:
+    _validate_result(problem, result)
+    data = {field.name: getattr(result, field.name) for field in fields(SearchResult)}
+    for name in ("initial_state", "final_state", "best_state"):
+        data[name] = state_to_dict(data[name]) if data[name] is not None else None
+    for name in ("initial_population", "final_population"):
+        data[name] = [state_to_dict(state) for state in data[name]] if data[name] is not None else None
+    return data
+
+
+def load_result(path: str | Path) -> tuple[Problem, SearchResult]:
+    with Path(path).open(encoding="utf-8") as handle:
+        snapshot = _object(json.load(handle), {"problem", "result"}, "run")
+    problem = problem_from_dict(snapshot["problem"])
+    data = dict(_object(snapshot["result"], {field.name for field in fields(SearchResult)}, "result"))
+    for name in ("initial_state", "final_state", "best_state"):
+        data[name] = state_from_dict(data[name]) if data[name] is not None else None
+    for name in ("initial_population", "final_population"):
+        if data[name] is not None:
+            if not isinstance(data[name], list):
+                raise ValueError(f"{name} harus berupa array atau null.")
+            data[name] = [state_from_dict(state) for state in data[name]]
+    result = SearchResult(**data)
+    _validate_result(problem, result)
+    json.dumps(snapshot, allow_nan=False)
+    return problem, result
+
+
+def save_result(
+    directory: str | Path, problem: Problem, result: SearchResult, *, plots: bool = False,
+) -> None:
+    snapshot = {"problem": problem_to_dict(problem), "result": result_to_dict(problem, result)}
+    content = json.dumps(snapshot, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    destination = Path(directory)
+    destination.mkdir(parents=True, exist_ok=False)
+    try:
+        (destination / "run.json").write_text(content, encoding="utf-8")
+        columns = list(dict.fromkeys(key for row in result.history for key in row))
+        with (destination / "history.csv").open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(result.history)
+        for name, state in (("initial", result.initial_state), ("final", result.final_state), ("best", result.best_state)):
+            if state is not None:
+                save_state(destination / f"{name}.json", problem, state, seed=result.seed)
+        if plots:
+            import matplotlib
+            matplotlib.use("Agg")
+            from matplotlib import pyplot as plt
+            from .visualization import plot_history, plot_state, save_figure
+
+            for name, state in (("initial", result.initial_state), ("final", result.final_state), ("best", result.best_state)):
+                if state is not None:
+                    figure = plot_state(problem, state, title=f"{result.algorithm} — {name} state")
+                    try:
+                        save_figure(figure, destination / f"{name}.png")
+                    finally:
+                        plt.close(figure)
+            figure = plot_history(result)
+            try:
+                save_figure(figure, destination / "history.png")
+            finally:
+                plt.close(figure)
+    except Exception:
+        rmtree(destination)
+        raise
