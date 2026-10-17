@@ -35,7 +35,7 @@ def main() -> None:
     visualize.add_argument("--output", help="Simpan gambar, misalnya output/scratch/initial.png.")
     visualize.add_argument("--title", default="State paket")
     visualize.add_argument("--show", action="store_true", help="Buka jendela gambar meskipun memakai --output.")
-    run = commands.add_parser("run", help="Jalankan satu algoritma dan simpan hasil (implementasi algoritma menyusul).")
+    run = commands.add_parser("run", help="Jalankan satu algoritma dan simpan hasil (GA tersedia; HC/SA menyusul).")
     run.add_argument("input", help="Path dataset JSON.")
     run.add_argument("--algorithm", choices=ALGORITHMS, required=True)
     run.add_argument("--seed", type=int, default=11)
