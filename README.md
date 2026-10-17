@@ -11,9 +11,9 @@ python -m pip install -r requirements.txt
 ```
 
 Di Windows PowerShell, aktivasi dengan `.venv\Scripts\Activate.ps1`.
-Matplotlib disiapkan untuk visualisasi; algoritma akan menggunakan standard
-library Python. Fondasi dan tes saat ini dapat dijalankan tanpa menginstal
-Matplotlib.
+Matplotlib digunakan untuk visualisasi. Perintah `init` dan `validate` dapat
+dijalankan tanpa Matplotlib; visualisasi dan seluruh tes membutuhkan dependency
+di `requirements.txt`.
 
 ## Menjalankan proyek
 
@@ -35,3 +35,23 @@ Gunakan nama output baru untuk run berikutnya; file lama tidak ditimpa. Folder
 `output/scratch/` diabaikan Git. Snapshot berisi seluruh input dan placement,
 termasuk paket luar. Perintah ini membuat initial state, belum menjalankan optimasi.
 Daftar perintah tersedia melalui `python -m src.main --help`.
+
+## Menampilkan visualisasi
+
+Buka snapshot yang sudah dibuat dalam jendela Matplotlib. Grafik 3D dapat diputar
+dengan mouse:
+
+```bash
+python -m src.main visualize output/scratch/initial-11.json --title "Initial state"
+```
+
+Simpan gambar tanpa membuka jendela:
+
+```bash
+python -m src.main visualize output/scratch/initial-11.json --output output/scratch/initial-11.png --title "Initial state"
+```
+
+Tambahkan `--show` untuk menyimpan sekaligus membuka jendela. Gunakan nama gambar
+baru jika file sudah ada. Gambar menampilkan paket dalam/luar truk, orientasi,
+penanda fragile, score, dan berat muatan. Snapshot state akhir nantinya dapat
+ditampilkan dengan perintah yang sama.
