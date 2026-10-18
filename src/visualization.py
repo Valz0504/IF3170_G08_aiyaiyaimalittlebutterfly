@@ -145,14 +145,19 @@ def plot_history(result: SearchResult) -> Figure:
     if not result.history:
         raise ValueError("History kosong; jalankan algoritma terlebih dahulu.")
     algorithm = result.algorithm.lower().replace(" ", "_").replace("-", "_")
-    if algorithm in ("hc", "hill_climbing", "steepest_ascent_hill_climbing"):
+    if algorithm in (
+        "hc", "hill_climbing", "steepest_ascent_hill_climbing",
+        "hc_sideways", "hc_stochastic",
+    ):
         kind = "hc"
+    elif algorithm == "hc_random_restart":
+        kind = "hc_restart"
     elif algorithm in ("sa", "simulated_annealing"):
         kind = "sa"
     elif algorithm in ("ga", "genetic_algorithm"):
         kind = "ga"
     else:
-        raise ValueError("Nama algoritma harus hc/hill_climbing, sa/simulated_annealing, atau ga/genetic_algorithm.")
+        raise ValueError("Nama algoritma harus HC (termasuk varian bonus), SA, atau GA.")
     iterations = _column(result.history, "iteration")
     if any(value < 0 or value != int(value) for value in iterations) or any(
         first >= second for first, second in zip(iterations, iterations[1:])
@@ -164,7 +169,7 @@ def plot_history(result: SearchResult) -> Figure:
                   ("Rata-rata populasi", _column(result.history, "mean_score"), "#3274a1", "--")]
     else:
         series = [("Score state", _column(result.history, "score"), "#00BCD4", "-")]
-        if kind == "sa":
+        if kind in ("sa", "hc_restart"):
             series.append(("Best-so-far", _column(result.history, "best_score"), "#b56a00", "--"))
     log_ratios = _column(result.history, "log_acceptance_ratio", allow_missing=True) if kind == "sa" else []
 
@@ -172,7 +177,22 @@ def plot_history(result: SearchResult) -> Figure:
                                squeeze=False, layout="constrained")
     objective_ax = axes[0, 0]
     for label, values, color, style in series:
-        objective_ax.plot(iterations, values, label=label, color=color, linestyle=style, marker=".")
+        if kind == "hc_restart" and label == "Score state":
+            # Jangan menghubungkan dua percobaan seolah-olah restart adalah move.
+            runs = {run["restart"]: run for run in result.metrics.get("runs", [])}
+            for index, restart in enumerate(dict.fromkeys(row["restart"] for row in result.history)):
+                rows = [row for row in result.history if row["restart"] == restart]
+                xs = [row["iteration"] for row in rows]
+                ys = [row["score"] for row in rows]
+                if restart in runs and rows[0]["restart_iteration"] != 0:
+                    xs.insert(0, xs[0] - 1)
+                    ys.insert(0, runs[restart]["initial_score"])
+                objective_ax.plot(xs, ys, label=label if index == 0 else None,
+                                  color=color, linestyle=style, marker=".")
+                if index:
+                    objective_ax.axvline(xs[0], color="#888888", linestyle=":", alpha=0.5)
+        else:
+            objective_ax.plot(iterations, values, label=label, color=color, linestyle=style, marker=".")
     objective_ax.set_ylabel("Objective / total value")
     objective_ax.legend()
     details = f"{result.algorithm} | Iterasi: {result.iterations} | Durasi: {result.duration_seconds:.3f} s | Seed: {result.seed}"
@@ -188,6 +208,10 @@ def plot_history(result: SearchResult) -> Figure:
         ratio_ax.set_ylabel(r"$e^{\Delta E/T}$ (skala log)")
         ratio_ax.set_title("Rasio eksponensial; probabilitas penerimaan dibatasi maksimum 1")
         ratio_ax.legend()
+    elif kind == "hc_restart":
+        details += f"\nRestart: {result.metrics.get('restarts', 'belum dicatat')} | Final state: terbaik seluruh percobaan"
+    elif algorithm == "hc_sideways":
+        details += f"\nSideways: {result.metrics.get('sideways_moves', 'belum dicatat')} | Batas berturut-turut: {result.parameters.get('max_sideways_moves', 'belum dicatat')}"
     figure.suptitle(details, fontsize=12)
     for ax in axes.flat:
         ax.set_xlabel("Generasi" if kind == "ga" else "Iterasi")
