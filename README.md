@@ -10,58 +10,75 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Di Windows PowerShell, aktivasi dengan `.venv\Scripts\Activate.ps1`.
-Matplotlib digunakan untuk visualisasi. Perintah `init`, `validate`, `run` tanpa
-`--plots`, serta tes HC dapat dijalankan tanpa Matplotlib. Untuk visualisasi,
-instal dependency di `requirements.txt`.
+Di Windows PowerShell, aktifkan environment dengan `.venv\Scripts\Activate.ps1`.
 
-## Menjalankan proyek
+## Menjalankan algoritma
 
-Jalankan dari root repository untuk membuat initial state acak:
+Ganti placeholder `<...>` di bawah dengan path atau nilai yang diinginkan, termasuk tanda kurungnya.
 
-```bash
-python -m src.main init data/example.json --seed 11
-```
+- `<dataset.json>`: path file input dengan format seperti `data/example.json`.
+- `<folder-output>`: direktori baru untuk menyimpan hasil satu run.
+- Gunakan tanda kutip jika path mengandung spasi.
 
-Program menampilkan validitas state, jumlah paket di dalam/luar, berat, dan score.
-Untuk menyimpan serta memeriksa ulang state:
+Steepest Ascent Hill Climbing:
 
 ```bash
-python -m src.main init data/example.json --seed 11 --output output/scratch/initial-11.json
-python -m src.main validate output/scratch/initial-11.json
+python -m src.main run <dataset.json> --algorithm hc --seed <seed> --output <folder-output> --plots
 ```
 
-Gunakan nama output baru untuk run berikutnya; file lama tidak ditimpa. Folder
-`output/scratch/` diabaikan Git. Snapshot berisi seluruh input dan placement,
-termasuk paket luar. Perintah ini membuat initial state, belum menjalankan optimasi.
-Daftar perintah tersedia melalui `python -m src.main --help`.
-
-## Menampilkan visualisasi
-
-Buka snapshot yang sudah dibuat dalam jendela Matplotlib. Grafik 3D dapat diputar
-dengan mouse:
+Simulated Annealing:
 
 ```bash
-python -m src.main visualize output/scratch/initial-11.json --title "Initial state"
+python -m src.main run <dataset.json> --algorithm sa --seed <seed> --max-iterations <batas-iterasi> --initial-temperature <suhu-awal> --cooling-rate <faktor-pendinginan> --min-temperature <suhu-minimum> --output <folder-output> --plots
 ```
 
-Simpan gambar tanpa membuka jendela:
+Genetic Algorithm:
 
 ```bash
-python -m src.main visualize output/scratch/initial-11.json --output output/scratch/initial-11.png --title "Initial state"
+python -m src.main run <dataset.json> --algorithm ga --seed <seed> --population-size <jumlah-populasi> --generations <jumlah-generasi> --output <folder-output> --plots
 ```
 
-Tambahkan `--show` untuk menyimpan sekaligus membuka jendela. Gunakan nama gambar
-baru jika file sudah ada. Gambar menampilkan paket dalam/luar truk, orientasi,
-penanda fragile, score, dan berat muatan. Snapshot state akhir nantinya dapat
-ditampilkan dengan perintah yang sama.
+Keterangan parameter:
 
-Perintah ini hanya untuk satu run. Runner eksperimen berulang belum dibuat.
+- `<seed>`: bilangan bulat untuk mengatur pengacakan. Initial state dibuat otomatis.
+- `<batas-iterasi>`: jumlah iterasi maksimum, berupa bilangan bulat positif. HC juga menerima opsi `--max-iterations <batas-iterasi>`.
+- `<suhu-awal>`: suhu awal SA, harus positif.
+- `<faktor-pendinginan>`: pengali suhu tiap iterasi SA, harus lebih dari 0 dan kurang dari 1.
+- `<suhu-minimum>`: batas suhu SA, harus positif dan lebih kecil dari suhu awal. SA berhenti jika suhu sudah di bawah batas ini.
+- `<jumlah-populasi>`: jumlah individu GA, berupa bilangan bulat positif.
+- `<jumlah-generasi>`: jumlah generasi GA, berupa bilangan bulat positif.
 
-## Pengujian Hill Climbing
+Gunakan direktori output baru setiap run. Hasil berisi `run.json`, `history.csv`,
+`initial.json`, dan `final.json`. Opsi `--plots` menyertakan gambar state dan grafik
+history. Gunakan `output/scratch/` untuk percobaan sementara yang diabaikan Git.
+Hasil eksperimen final dapat disimpan di luar folder tersebut, misalnya
+`output/eksperimen/hc-11/`, agar bisa di-commit. Folder `output/` secara keseluruhan
+tidak diabaikan Git.
 
-File tes berada di `src/test_hill_climbing.py`. Jalankan dari root repository:
+Pada SA, `final.json` berisi state terakhir dan `best.json` berisi state terbaik
+yang ditemukan. Hitungan stuck dimulai dari state setelah langkah pertama.
+
+## Memeriksa dan menampilkan hasil
 
 ```bash
-python -m unittest src.test_hill_climbing -v
+python -m src.main validate <snapshot.json>
+python -m src.main visualize <snapshot.json>
 ```
+
+`<snapshot.json>` adalah `initial.json`, `final.json`, atau `best.json` dari folder
+hasil, bukan `run.json`. Grafik 3D dapat diputar dengan mouse.
+Untuk menyimpan gambar tanpa membuka jendela:
+
+```bash
+python -m src.main visualize <snapshot.json> --output <gambar.png>
+```
+
+Tambahkan `--show` untuk menyimpan sekaligus menampilkan gambar.
+
+## Membuat initial state saja
+
+```bash
+python -m src.main init <dataset.json> --seed <seed> --output <initial.json>
+```
+
+Daftar parameter tersedia melalui `python -m src.main run --help`.
