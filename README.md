@@ -11,9 +11,9 @@ python -m pip install -r requirements.txt
 ```
 
 Di Windows PowerShell, aktivasi dengan `.venv\Scripts\Activate.ps1`.
-Matplotlib digunakan untuk visualisasi. Perintah `init` dan `validate` dapat
-dijalankan tanpa Matplotlib; visualisasi dan seluruh tes membutuhkan dependency
-di `requirements.txt`.
+Matplotlib digunakan untuk visualisasi. Perintah `init`, `validate`, `run` tanpa
+`--plots`, serta tes HC dapat dijalankan tanpa Matplotlib. Untuk visualisasi,
+instal dependency di `requirements.txt`.
 
 ## Menjalankan proyek
 
@@ -55,3 +55,13 @@ Tambahkan `--show` untuk menyimpan sekaligus membuka jendela. Gunakan nama gamba
 baru jika file sudah ada. Gambar menampilkan paket dalam/luar truk, orientasi,
 penanda fragile, score, dan berat muatan. Snapshot state akhir nantinya dapat
 ditampilkan dengan perintah yang sama.
+
+Perintah ini hanya untuk satu run. Runner eksperimen berulang belum dibuat.
+
+## Pengujian Hill Climbing
+
+File tes berada di `src/test_hill_climbing.py`. Jalankan dari root repository:
+
+```bash
+python -m unittest src.test_hill_climbing -v
+```
