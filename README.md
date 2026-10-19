@@ -68,6 +68,7 @@ Keterangan parameter:
 - `<jumlah-populasi>`: jumlah individu GA, berupa bilangan bulat positif.
 - `<jumlah-generasi>`: jumlah generasi GA, berupa bilangan bulat positif.
 - `--objective <default|bonus>`: pilihan fungsi objective (default: `default` berupa total value paket di dalam truk; `bonus` berupa multifaktor logistik yang menggabungkan total value, kesesuaian posisi `y` terhadap `eta`, stabilitas titik berat `weight` terhadap `z`, dan rasio luas tumpuan alas).
+- `--trucks <jumlah-truk>`: jumlah truk dalam armada (bilangan bulat positif, opsional). Jika diberikan, jumlah truk pada dataset akan direplikasi/disesuaikan menjadi `<jumlah-truk>` truk. Armada multi-truk juga dapat didefinisikan langsung di file JSON melalui key `"trucks": [...]` atau `"count"` pada objek `"truck"`.
 
 Gunakan direktori output baru setiap run. Hasil berisi `run.json`, `history.csv`,
 `initial.json`, dan `final.json`. Opsi `--plots` menyertakan gambar state dan grafik

@@ -29,9 +29,12 @@ def _overlap(a: tuple[int, ...], b: tuple[int, ...], axes: tuple[int, ...]) -> b
     return all(a[axis] < b[axis + 3] and b[axis] < a[axis + 3] for axis in axes)
 
 
-# cek apakah suatu paket seluruhnya ada di dalam truk
+# cek apakah suatu paket seluruhnya ada di dalam truk sesuai indeks truk pada placement
 def is_inside(problem: Problem, package: Package, placement: Placement) -> bool:
-    return _inside(_bounds(package, placement), problem.truck.dimensions.as_tuple())
+    if not 0 <= placement.truck < len(problem.trucks):
+        return False
+    dimensions = problem.trucks[placement.truck].dimensions.as_tuple()
+    return _inside(_bounds(package, placement), dimensions)
 
 
 # ngitung seluruh berat paket
@@ -39,7 +42,7 @@ def _weight_sum(packages: Iterable[Package]) -> Decimal:
     return sum((Decimal(str(package.weight)) for package in packages), Decimal(0))
 
 
-# cek ID, dinding, overlap, capacity, paket yg melayang, fragile. Return [] kalo valid
+# cek ID, indeks truk, dinding, overlap, capacity, paket yg melayang, fragile. Return [] kalo valid
 def validate_state(problem: Problem, state: State) -> list[str]:
     errors = []
     packages = {package.id: package for package in problem.packages}
@@ -52,37 +55,64 @@ def validate_state(problem: Problem, state: State) -> list[str]:
     if errors:
         return errors
 
-    dimensions = problem.truck.dimensions.as_tuple()
+    num_trucks = len(problem.trucks)
+    for key, placement in state.placements.items():
+        if not 0 <= placement.truck < num_trucks:
+            errors.append(f"Indeks truk untuk paket {key} tidak valid: {placement.truck}.")
+    if errors:
+        return errors
+
     boxes = {key: _bounds(package, state.placements[key]) for key, package in packages.items()}
-    loaded = []
+    loaded_by_truck: list[list[str]] = [[] for _ in range(num_trucks)]
+    outside: list[str] = []
+
     for key, box in boxes.items():
+        truck_idx = state.placements[key].truck
+        dimensions = problem.trucks[truck_idx].dimensions.as_tuple()
         if _inside(box, dimensions):
-            loaded.append(key)
+            loaded_by_truck[truck_idx].append(key)
         elif not any(box[axis + 3] <= 0 or box[axis] >= dimensions[axis] for axis in range(3)):
             errors.append(f"Paket {key} menembus dinding truk.")
+        else:
+            outside.append(key)
 
-    for first, second in combinations(boxes, 2):
+    for truck_loaded in loaded_by_truck:
+        for first, second in combinations(truck_loaded, 2):
+            if _overlap(boxes[first], boxes[second], (0, 1, 2)):
+                errors.append(f"Paket {first} dan {second} overlap.")
+
+    for first, second in combinations(outside, 2):
         if _overlap(boxes[first], boxes[second], (0, 1, 2)):
             errors.append(f"Paket {first} dan {second} overlap.")
 
-    total_weight = _weight_sum(packages[key] for key in loaded)
-    if total_weight > Decimal(str(problem.truck.max_capacity)):
-        errors.append("Total berat melebihi kapasitas truk.")
+    for truck_idx, truck_loaded in enumerate(loaded_by_truck):
+        for first in truck_loaded:
+            for second in outside:
+                if state.placements[second].truck == truck_idx and _overlap(boxes[first], boxes[second], (0, 1, 2)):
+                    errors.append(f"Paket {first} dan {second} overlap.")
 
-    for key in loaded:
-        box = boxes[key]
-        if box[2] == 0:
-            continue
-        supports = [
-            other for other in loaded
-            if other != key and boxes[other][5] == box[2]
-            and _overlap(box, boxes[other], (0, 1))
-        ]
-        if not supports:
-            errors.append(f"Paket {key} melayang.")
-        for other in supports:
-            if packages[other].is_fragile:
-                errors.append(f"Paket fragile {other} menjadi support untuk {key}.")
+    for truck_idx, (truck, truck_loaded) in enumerate(zip(problem.trucks, loaded_by_truck)):
+        total_weight = _weight_sum(packages[key] for key in truck_loaded)
+        if total_weight > Decimal(str(truck.max_capacity)):
+            if num_trucks == 1:
+                errors.append("Total berat melebihi kapasitas truk.")
+            else:
+                errors.append(f"Total berat pada truk {truck_idx + 1} melebihi kapasitas truk.")
+
+        for key in truck_loaded:
+            box = boxes[key]
+            if box[2] == 0:
+                continue
+            supports = [
+                other for other in truck_loaded
+                if other != key and boxes[other][5] == box[2]
+                and _overlap(box, boxes[other], (0, 1))
+            ]
+            if not supports:
+                errors.append(f"Paket {key} melayang.")
+            for other in supports:
+                if packages[other].is_fragile:
+                    errors.append(f"Paket fragile {other} menjadi support untuk {key}.")
     return errors
 
 

@@ -21,9 +21,37 @@ def _dimensions(data: object) -> Dimensions:
     return Dimensions(**_object(data, {"w", "l", "h"}, "dimensions"))
 
 
+def _truck_from_dict(raw: object) -> tuple[Truck, int]:
+    if not isinstance(raw, dict):
+        raise ValueError("truck harus berupa object JSON.")
+    allowed = {"dimensions", "max_capacity"}
+    count = 1
+    if "count" in raw:
+        allowed = {"dimensions", "max_capacity", "count"}
+        count = raw["count"]
+        if type(count) is not int or count <= 0:
+            raise ValueError("count truk harus berupa bilangan bulat positif.")
+    item = _object(raw, allowed, "truck")
+    return Truck(_dimensions(item["dimensions"]), item["max_capacity"]), count
+
+
 def problem_from_dict(data: dict) -> Problem:
-    data = _object(data, {"truck", "packages"}, "input")
-    truck = _object(data["truck"], {"dimensions", "max_capacity"}, "truck")
+    if not isinstance(data, dict):
+        raise ValueError("input harus berupa object JSON.")
+    keys = set(data)
+    if not keys <= {"truck", "trucks", "packages"} or "packages" not in keys or not (keys & {"truck", "trucks"}):
+        raise ValueError("Field input harus memuat packages serta truck atau trucks.")
+    trucks: list[Truck] = []
+    if "trucks" in data:
+        if not isinstance(data["trucks"], list) or not data["trucks"]:
+            raise ValueError("trucks harus berupa array JSON yang tidak kosong.")
+        for raw_truck in data["trucks"]:
+            truck_obj, count = _truck_from_dict(raw_truck)
+            trucks.extend([truck_obj] * count)
+    elif "truck" in data:
+        truck_obj, count = _truck_from_dict(data["truck"])
+        trucks.extend([truck_obj] * count)
+
     if not isinstance(data["packages"], list):
         raise ValueError("packages harus berupa array JSON.")
     packages = []
@@ -38,16 +66,20 @@ def problem_from_dict(data: dict) -> Problem:
             eta=item["eta"],
         ))
     return Problem(
-        truck=Truck(_dimensions(truck["dimensions"]), truck["max_capacity"]),
+        truck=trucks[0],
         packages=tuple(packages),
+        trucks=tuple(trucks),
     )
 
 
 def problem_to_dict(problem: Problem) -> dict:
-    return {
+    result = {
         "truck": asdict(problem.truck),
         "packages": [asdict(package) for package in problem.packages],
     }
+    if len(problem.trucks) > 1:
+        result["trucks"] = [asdict(truck) for truck in problem.trucks]
+    return result
 
 
 def state_from_dict(data: dict) -> State:
@@ -56,29 +88,53 @@ def state_from_dict(data: dict) -> State:
         raise ValueError("placements harus berupa object JSON.")
     placements = {}
     for key, raw in data["placements"].items():
-        item = _object(raw, {"position", "orientation"}, "placement")
+        if not isinstance(raw, dict):
+            raise ValueError("placement harus berupa object JSON.")
+        expected = {"position", "orientation", "truck"} if "truck" in raw else {"position", "orientation"}
+        item = _object(raw, expected, "placement")
         position = _object(item["position"], {"x", "y", "z"}, "position")
         orientation = _object(item["orientation"], {"w", "l", "h"}, "orientation")
+        truck_idx = item.get("truck", 0)
         placements[key] = Placement(
             position=tuple(position[axis] for axis in ("x", "y", "z")),
             orientation=tuple(orientation[side] for side in ("w", "l", "h")),
+            truck=truck_idx,
         )
     return State(placements)
 
 
 def state_to_dict(state: State) -> dict:
-    return {"placements": {
-        key: {
+    has_multi_truck = any(placement.truck != 0 for placement in state.placements.values())
+    placements = {}
+    for key, placement in state.placements.items():
+        entry = {
             "position": dict(zip(("x", "y", "z"), placement.position)),
             "orientation": dict(zip(("w", "l", "h"), placement.orientation)),
         }
-        for key, placement in state.placements.items()
-    }}
+        if has_multi_truck:
+            entry["truck"] = placement.truck
+        placements[key] = entry
+    return {"placements": placements}
 
 
-def load_problem(path: str | Path) -> Problem:
+def with_trucks(problem: Problem, num_trucks: int | None) -> Problem:
+    if num_trucks is None:
+        return problem
+    if type(num_trucks) is not int or num_trucks <= 0:
+        raise ValueError("Jumlah truk harus berupa bilangan bulat positif.")
+    if num_trucks == len(problem.trucks):
+        return problem
+    if len(problem.trucks) == 1:
+        trucks = (problem.truck,) * num_trucks
+    else:
+        trucks = tuple(problem.trucks[i % len(problem.trucks)] for i in range(num_trucks))
+    return Problem(truck=trucks[0], packages=problem.packages, trucks=trucks)
+
+
+def load_problem(path: str | Path, *, trucks: int | None = None) -> Problem:
     with Path(path).open(encoding="utf-8") as handle:
-        return problem_from_dict(json.load(handle))
+        problem = problem_from_dict(json.load(handle))
+    return with_trucks(problem, trucks)
 
 
 def save_state(
