@@ -6,7 +6,7 @@ from pathlib import Path
 from shutil import rmtree
 
 from .models import Dimensions, Package, Placement, Problem, SearchResult, State, Truck
-from .problem import score
+from .problem import OBJECTIVES, get_objective, score, set_objective
 
 
 def _object(data: object, keys: set[str], label: str) -> dict:
@@ -105,7 +105,12 @@ def load_state(path: str | Path) -> tuple[Problem, State]:
     problem = problem_from_dict(snapshot["problem"])
     state = state_from_dict(snapshot["state"])
     if snapshot["score"] != score(problem, state):
-        raise ValueError("Score snapshot tidak sesuai dengan state.")
+        for name in OBJECTIVES:
+            if snapshot["score"] == score(problem, state, objective=name):
+                set_objective(name)
+                break
+        else:
+            raise ValueError("Score snapshot tidak sesuai dengan state.")
     return problem, state
 
 
@@ -121,6 +126,9 @@ def _validate_result(problem: Problem, result: SearchResult) -> None:
         raise ValueError("Jumlah iterasi harus berupa integer nonnegatif.")
     if type(result.duration_seconds) not in (int, float) or not isfinite(result.duration_seconds) or result.duration_seconds < 0:
         raise ValueError("Durasi harus berupa angka berhingga nonnegatif.")
+    if not isinstance(result.parameters, dict) or not isinstance(result.metrics, dict):
+        raise ValueError("parameters dan metrics harus berupa dictionary.")
+    objective = result.parameters.get("objective", get_objective())
     states = [result.initial_state, result.final_state]
     if result.best_state is not None:
         states.append(result.best_state)
@@ -132,11 +140,9 @@ def _validate_result(problem: Problem, result: SearchResult) -> None:
     for state in states:
         if not isinstance(state, State):
             raise ValueError("State hasil harus berupa State.")
-        score(problem, state)
-    if type(result.final_score) not in (int, float) or result.final_score != score(problem, result.final_state):
+        score(problem, state, objective=objective)
+    if type(result.final_score) not in (int, float) or result.final_score != score(problem, result.final_state, objective=objective):
         raise ValueError("final_score tidak sesuai dengan final_state.")
-    if not isinstance(result.parameters, dict) or not isinstance(result.metrics, dict):
-        raise ValueError("parameters dan metrics harus berupa dictionary.")
     if not isinstance(result.history, list) or not result.history:
         raise ValueError("History harus berisi data sejak iterasi 0.")
     previous = -1
@@ -176,6 +182,8 @@ def load_result(path: str | Path) -> tuple[Problem, SearchResult]:
                 raise ValueError(f"{name} harus berupa array atau null.")
             data[name] = [state_from_dict(state) for state in data[name]]
     result = SearchResult(**data)
+    if isinstance(result.parameters, dict) and result.parameters.get("objective") in OBJECTIVES:
+        set_objective(result.parameters["objective"])
     _validate_result(problem, result)
     json.dumps(snapshot, allow_nan=False)
     return problem, result

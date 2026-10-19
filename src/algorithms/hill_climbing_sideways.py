@@ -2,13 +2,13 @@ from random import Random
 from time import perf_counter
 
 from ..models import Problem, SearchResult
-from ..problem import generate_initial_state, score
+from ..problem import generate_initial_state, get_objective, score, set_objective
 from .hill_climbing_steepest_ascent import _best_neighbor, _nonnegative_limit, _validate_parameters
 
 
 def solve(
     problem: Problem, *, seed: int = 11, max_iterations: int | None = None,
-    max_sideways_moves: int = 100,
+    max_sideways_moves: int = 100, objective: str | None = None,
 ) -> SearchResult:
     """HC Sideways: PPT IF3170 Beyond Classical Search, halaman 26–27.
 
@@ -18,6 +18,7 @@ def solve(
     """
     _validate_parameters(seed, max_iterations)
     _nonnegative_limit(max_sideways_moves, "max_sideways_moves")
+    active_objective = set_objective(objective) if objective is not None else get_objective()
     initial_state = generate_initial_state(problem, Random(seed))
     rng = Random(seed + 1)
 
@@ -57,7 +58,11 @@ def solve(
         algorithm="hc_sideways", initial_state=initial_state, final_state=current,
         final_score=current_score, iterations=iterations,
         duration_seconds=duration_seconds, seed=seed, stop_reason=stop_reason,
-        parameters={"max_iterations": max_iterations, "max_sideways_moves": max_sideways_moves},
+        parameters={
+            "max_iterations": max_iterations,
+            "max_sideways_moves": max_sideways_moves,
+            "objective": active_objective,
+        },
         history=history,
         metrics={"sideways_moves": sideways_moves, "consecutive_sideways": consecutive_sideways},
     )

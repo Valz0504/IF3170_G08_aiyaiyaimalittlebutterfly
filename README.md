@@ -67,6 +67,7 @@ Keterangan parameter:
 - `<suhu-minimum>`: batas suhu SA, harus positif dan lebih kecil dari suhu awal. SA berhenti jika suhu sudah di bawah batas ini.
 - `<jumlah-populasi>`: jumlah individu GA, berupa bilangan bulat positif.
 - `<jumlah-generasi>`: jumlah generasi GA, berupa bilangan bulat positif.
+- `--objective <default|bonus>`: pilihan fungsi objective (default: `default` berupa total value paket di dalam truk; `bonus` berupa multifaktor logistik yang menggabungkan total value, kesesuaian posisi `y` terhadap `eta`, stabilitas titik berat `weight` terhadap `z`, dan rasio luas tumpuan alas).
 
 Gunakan direktori output baru setiap run. Hasil berisi `run.json`, `history.csv`,
 `initial.json`, dan `final.json`. Opsi `--plots` menyertakan gambar state dan grafik

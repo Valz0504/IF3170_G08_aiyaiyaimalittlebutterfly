@@ -6,7 +6,7 @@ from random import Random
 from .algorithms import ALGORITHMS
 from .experiments import load_problem, load_state, save_result, save_state
 from .models import Problem, State
-from .problem import generate_initial_state, loaded_weight, score
+from .problem import OBJECTIVES, generate_initial_state, loaded_weight, score, set_objective
 from .validation import is_inside
 
 
@@ -27,11 +27,17 @@ def main() -> None:
     initial = commands.add_parser("init", help="Buat initial state acak yang valid.")
     initial.add_argument("input", help="Path dataset JSON.")
     initial.add_argument("--seed", type=int, default=11)
+    initial.add_argument("--objective", choices=OBJECTIVES, default="default",
+                         help="Fungsi objective: default (total value) atau bonus (multi-faktor logistik).")
     initial.add_argument("--output", help="Simpan snapshot ke file JSON baru.")
     validate = commands.add_parser("validate", help="Periksa snapshot state tersimpan.")
     validate.add_argument("state", help="Path snapshot JSON hasil init.")
+    validate.add_argument("--objective", choices=OBJECTIVES, default="default",
+                          help="Fungsi objective awal sebelum deteksi otomatis snapshot.")
     visualize = commands.add_parser("visualize", help="Tampilkan atau simpan visualisasi state.")
     visualize.add_argument("state", help="Path snapshot JSON hasil init atau state akhir.")
+    visualize.add_argument("--objective", choices=OBJECTIVES, default="default",
+                           help="Fungsi objective awal sebelum deteksi otomatis snapshot.")
     visualize.add_argument("--output", help="Simpan gambar, misalnya output/scratch/initial.png.")
     visualize.add_argument("--title", default="State paket")
     visualize.add_argument("--show", action="store_true", help="Buka jendela gambar meskipun memakai --output.")
@@ -39,6 +45,8 @@ def main() -> None:
     run.add_argument("input", help="Path dataset JSON.")
     run.add_argument("--algorithm", choices=ALGORITHMS, required=True,
                      help="hc = Steepest Ascent; varian lain: hc_sideways, hc_random_restart, hc_stochastic; sa; ga.")
+    run.add_argument("--objective", choices=OBJECTIVES, default="default",
+                     help="Fungsi objective: default (total value) atau bonus (multi-faktor logistik).")
     run.add_argument("--seed", type=int, default=11)
     run.add_argument("--output", required=True, help="Direktori hasil baru, tidak boleh sudah ada.")
     run.add_argument("--plots", action="store_true", help="Sertakan gambar state dan history; membutuhkan Matplotlib.")
@@ -56,6 +64,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        set_objective(args.objective)
         if args.command == "init":
             problem = load_problem(args.input)
             state = generate_initial_state(problem, Random(args.seed))
@@ -72,7 +81,7 @@ def main() -> None:
             parameters = {key: value for key, value in vars(args).items() if key in (
                 "max_iterations", "initial_temperature", "cooling_rate",
                 "min_temperature", "population_size", "generations",
-                "max_sideways_moves", "max_restarts",
+                "max_sideways_moves", "max_restarts", "objective",
             )}
             try:
                 signature(solve).bind(None, seed=args.seed, **parameters)

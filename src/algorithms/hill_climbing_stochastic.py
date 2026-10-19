@@ -3,12 +3,13 @@ from time import perf_counter
 
 from ..models import Problem, SearchResult
 from ..neighbors import sample_neighbor
-from ..problem import generate_initial_state, score
+from ..problem import generate_initial_state, get_objective, score, set_objective
 from .hill_climbing_steepest_ascent import _validate_parameters
 
 
 def solve(
     problem: Problem, *, seed: int = 11, max_iterations: int = 1000,
+    objective: str | None = None,
 ) -> SearchResult:
     """Stochastic HC sesuai PPT IF3170 halaman 29: satu kandidat acak per iterasi.
 
@@ -18,6 +19,7 @@ def solve(
     _validate_parameters(seed, max_iterations)
     if max_iterations is None:
         raise ValueError("max_iterations harus berupa integer positif.")
+    active_objective = set_objective(objective) if objective is not None else get_objective()
     initial_state = generate_initial_state(problem, Random(seed))
     rng = Random(seed + 1)
 
@@ -51,7 +53,8 @@ def solve(
         algorithm="hc_stochastic", initial_state=initial_state, final_state=current,
         final_score=current_score, iterations=max_iterations,
         duration_seconds=duration_seconds, seed=seed, stop_reason="max_iterations",
-        parameters={"max_iterations": max_iterations}, history=history,
+        parameters={"max_iterations": max_iterations, "objective": active_objective},
+        history=history,
         metrics={
             "accepted_moves": accepted_moves, "rejected_moves": rejected_moves,
             "sample_failures": sample_failures,
