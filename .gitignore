@@ -7,3 +7,4 @@ __pycache__/
 
 # Hasil eksperimen final tetap disimpan di output/ dan masuk Git.
 output/scratch/
+run.json

@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from .models import Problem, SearchResult, State
-from .problem import loaded_weight, loaded_weight_for_truck, score, total_capacity
+from .problem import get_objective, loaded_weight, loaded_weight_for_truck, score, total_capacity
 from .validation import is_inside, oriented_dimensions
 
 
@@ -49,8 +49,11 @@ def _draw_package(ax, package, placement, color) -> None:
     )
 
 
-def plot_state(problem: Problem, state: State, title: str = "State paket") -> Figure:
-    value = score(problem, state)
+def plot_state(
+    problem: Problem, state: State, title: str = "State paket", *, objective: str | None = None,
+) -> Figure:
+    chosen = get_objective() if objective is None else objective
+    value = score(problem, state, objective=chosen)
     weight = loaded_weight(problem, state)
     fleet_capacity = total_capacity(problem)
     packages = problem.packages
@@ -68,7 +71,7 @@ def plot_state(problem: Problem, state: State, title: str = "State paket") -> Fi
 
     fleet_info = f" | Truk: {num_trucks}" if num_trucks > 1 else ""
     figure.suptitle(
-        f"{title}\nScore: {value:g} | Berat: {weight:g} / {fleet_capacity:g}"
+        f"{title}\nObjective: {chosen} | Score: {value:g} | Berat: {weight:g} / {fleet_capacity:g}"
         f"{fleet_info} | Dalam: {len(inside)} | Luar: {len(outside)}",
         fontsize=14,
     )
@@ -211,9 +214,10 @@ def plot_history(result: SearchResult) -> Figure:
                     objective_ax.axvline(xs[0], color="#888888", linestyle=":", alpha=0.5)
         else:
             objective_ax.plot(iterations, values, label=label, color=color, linestyle=style, marker=".")
-    objective_ax.set_ylabel("Objective / total value")
+    objective = result.parameters.get("objective", "default")
+    objective_ax.set_ylabel("Objective / total value" if objective == "default" else "Objective bonus")
     objective_ax.legend()
-    details = f"{result.algorithm} | Iterasi: {result.iterations} | Durasi: {result.duration_seconds:.3f} s | Seed: {result.seed}"
+    details = f"{result.algorithm} | Objective: {objective} | Iterasi: {result.iterations} | Durasi: {result.duration_seconds:.3f} s | Seed: {result.seed}"
     if kind == "ga":
         population = len(result.final_population) if result.final_population is not None else result.parameters.get("population_size", "belum dicatat")
         details += f"\nPopulasi: {population}"
