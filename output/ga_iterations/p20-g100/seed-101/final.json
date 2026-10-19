@@ -1,0 +1,309 @@
+{
+  "problem": {
+    "truck": {
+      "dimensions": {
+        "w": 6,
+        "l": 4,
+        "h": 4
+      },
+      "max_capacity": 40
+    },
+    "packages": [
+      {
+        "id": "P01",
+        "dimensions": {
+          "w": 4,
+          "l": 3,
+          "h": 2
+        },
+        "value": 62,
+        "weight": 12,
+        "is_fragile": false,
+        "eta": 6
+      },
+      {
+        "id": "P02",
+        "dimensions": {
+          "w": 3,
+          "l": 3,
+          "h": 2
+        },
+        "value": 55,
+        "weight": 10,
+        "is_fragile": false,
+        "eta": 3
+      },
+      {
+        "id": "P03",
+        "dimensions": {
+          "w": 4,
+          "l": 2,
+          "h": 2
+        },
+        "value": 48,
+        "weight": 9,
+        "is_fragile": false,
+        "eta": 1
+      },
+      {
+        "id": "P04",
+        "dimensions": {
+          "w": 3,
+          "l": 2,
+          "h": 2
+        },
+        "value": 44,
+        "weight": 7,
+        "is_fragile": true,
+        "eta": 2
+      },
+      {
+        "id": "P05",
+        "dimensions": {
+          "w": 2,
+          "l": 3,
+          "h": 2
+        },
+        "value": 40,
+        "weight": 6,
+        "is_fragile": false,
+        "eta": 5
+      },
+      {
+        "id": "P06",
+        "dimensions": {
+          "w": 2,
+          "l": 2,
+          "h": 2
+        },
+        "value": 32,
+        "weight": 5,
+        "is_fragile": false,
+        "eta": 4
+      },
+      {
+        "id": "P07",
+        "dimensions": {
+          "w": 3,
+          "l": 2,
+          "h": 1
+        },
+        "value": 29,
+        "weight": 4,
+        "is_fragile": true,
+        "eta": 1
+      },
+      {
+        "id": "P08",
+        "dimensions": {
+          "w": 1,
+          "l": 2,
+          "h": 3
+        },
+        "value": 26,
+        "weight": 3,
+        "is_fragile": false,
+        "eta": 6
+      },
+      {
+        "id": "P09",
+        "dimensions": {
+          "w": 2,
+          "l": 2,
+          "h": 1
+        },
+        "value": 25,
+        "weight": 3,
+        "is_fragile": false,
+        "eta": 2
+      },
+      {
+        "id": "P10",
+        "dimensions": {
+          "w": 3,
+          "l": 1,
+          "h": 1
+        },
+        "value": 18,
+        "weight": 2,
+        "is_fragile": true,
+        "eta": 3
+      },
+      {
+        "id": "P11",
+        "dimensions": {
+          "w": 1,
+          "l": 2,
+          "h": 1
+        },
+        "value": 12,
+        "weight": 1,
+        "is_fragile": false,
+        "eta": 5
+      },
+      {
+        "id": "P12",
+        "dimensions": {
+          "w": 2,
+          "l": 5,
+          "h": 1
+        },
+        "value": 46,
+        "weight": 6,
+        "is_fragile": false,
+        "eta": 4
+      }
+    ]
+  },
+  "state": {
+    "placements": {
+      "P01": {
+        "position": {
+          "x": 7,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "y",
+          "l": "z",
+          "h": "x"
+        }
+      },
+      "P02": {
+        "position": {
+          "x": 1,
+          "y": 1,
+          "z": 0
+        },
+        "orientation": {
+          "w": "x",
+          "l": "y",
+          "h": "z"
+        }
+      },
+      "P03": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 2
+        },
+        "orientation": {
+          "w": "y",
+          "l": "z",
+          "h": "x"
+        }
+      },
+      "P04": {
+        "position": {
+          "x": 25,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "z",
+          "l": "x",
+          "h": "y"
+        }
+      },
+      "P05": {
+        "position": {
+          "x": 4,
+          "y": 2,
+          "z": 0
+        },
+        "orientation": {
+          "w": "y",
+          "l": "z",
+          "h": "x"
+        }
+      },
+      "P06": {
+        "position": {
+          "x": 37,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "x",
+          "l": "y",
+          "h": "z"
+        }
+      },
+      "P07": {
+        "position": {
+          "x": 4,
+          "y": 0,
+          "z": 3
+        },
+        "orientation": {
+          "w": "y",
+          "l": "x",
+          "h": "z"
+        }
+      },
+      "P08": {
+        "position": {
+          "x": 2,
+          "y": 1,
+          "z": 2
+        },
+        "orientation": {
+          "w": "x",
+          "l": "z",
+          "h": "y"
+        }
+      },
+      "P09": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "z",
+          "l": "y",
+          "h": "x"
+        }
+      },
+      "P10": {
+        "position": {
+          "x": 61,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "y",
+          "l": "x",
+          "h": "z"
+        }
+      },
+      "P11": {
+        "position": {
+          "x": 67,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "z",
+          "l": "y",
+          "h": "x"
+        }
+      },
+      "P12": {
+        "position": {
+          "x": 73,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "w": "y",
+          "l": "x",
+          "h": "z"
+        }
+      }
+    }
+  },
+  "score": 223,
+  "objective": "default",
+  "seed": 101
+}
