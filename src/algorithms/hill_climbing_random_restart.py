@@ -2,13 +2,13 @@ from random import Random
 from time import perf_counter
 
 from ..models import Problem, SearchResult
-from ..problem import generate_initial_state, score
+from ..problem import generate_initial_state, get_objective, objective_upper_bound, score, set_objective
 from .hill_climbing_steepest_ascent import _best_neighbor, _nonnegative_limit, _validate_parameters
 
 
 def solve(
     problem: Problem, *, seed: int = 11, max_iterations: int | None = None,
-    max_restarts: int = 10,
+    max_restarts: int = 10, objective: str | None = None,
 ) -> SearchResult:
     """Random Restart HC sesuai PPT IF3170 halaman 28, dengan batas restart.
 
@@ -20,6 +20,7 @@ def solve(
     """
     _validate_parameters(seed, max_iterations)
     _nonnegative_limit(max_restarts, "max_restarts")
+    active_objective = set_objective(objective) if objective is not None else get_objective()
     initial_rng = Random(seed)
     initial_state = generate_initial_state(problem, initial_rng)
     rng = Random(seed + 1)
@@ -28,7 +29,7 @@ def solve(
     initialization_seconds = 0.0
     current = best_state = initial_state
     current_score = best_score = score(problem, current)
-    upper_bound = sum(package.value for package in problem.packages)
+    upper_bound = objective_upper_bound(problem, objective=active_objective)
     history = [{
         "iteration": 0, "score": current_score, "best_score": best_score,
         "restart": 0, "restart_iteration": 0,
@@ -83,7 +84,11 @@ def solve(
         final_state=best_state, final_score=best_score, best_state=best_state,
         iterations=iterations, duration_seconds=duration_seconds,
         seed=seed, stop_reason=stop_reason,
-        parameters={"max_iterations": max_iterations, "max_restarts": max_restarts},
+        parameters={
+            "max_iterations": max_iterations,
+            "max_restarts": max_restarts,
+            "objective": active_objective,
+        },
         history=history,
         metrics={
             "restarts": len(runs) - 1,

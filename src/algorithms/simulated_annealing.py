@@ -5,7 +5,7 @@ from time import perf_counter
 
 from ..models import Problem, SearchResult, State
 from ..neighbors import iter_neighbors, sample_neighbor
-from ..problem import generate_initial_state, score
+from ..problem import generate_initial_state, get_objective, score, set_objective
 
 
 def _validate_parameters(
@@ -44,12 +44,13 @@ def _is_stuck(problem: Problem, state: State, current_score: int | float) -> boo
 def solve(
     problem: Problem, *, seed: int = 11, max_iterations: int = 1000,
     initial_temperature: float = 100.0, cooling_rate: float = 0.95,
-    min_temperature: float = 0.001,
+    min_temperature: float = 0.001, objective: str | None = None,
 ) -> SearchResult:
     _validate_parameters(
         problem, seed, max_iterations,
         initial_temperature, cooling_rate, min_temperature,
     )
+    active_objective = set_objective(objective) if objective is not None else get_objective()
     initial_temp = float(initial_temperature)
     cooling = float(cooling_rate)
     min_temp = float(min_temperature)
@@ -168,6 +169,7 @@ def solve(
             "initial_temperature": initial_temp,
             "cooling_rate": cooling,
             "min_temperature": min_temp,
+            "objective": active_objective,
         },
         history=history,
         metrics={

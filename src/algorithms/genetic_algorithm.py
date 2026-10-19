@@ -3,7 +3,7 @@ from time import perf_counter
 
 from ..models import Placement, Problem, SearchResult, State
 from ..neighbors import outside_slots, sample_neighbor
-from ..problem import generate_initial_state, score
+from ..problem import generate_initial_state, get_objective, score, set_objective
 from ..validation import is_inside, validate_state
 
 MUTATION_PROBABILITY = 0.05
@@ -56,13 +56,14 @@ def mutate(problem: Problem, child: State, rng: Random) -> State:
 
 def solve(
     problem: Problem, *, seed: int = 11, population_size: int = 20,
-    generations: int = 100,
+    generations: int = 100, objective: str | None = None,
 ) -> SearchResult:
     if type(seed) is not int:
         raise ValueError("Seed harus berupa integer.")
     for name, value in (("population_size", population_size), ("generations", generations)):
         if type(value) is not int or value <= 0:
             raise ValueError(f"{name} harus berupa integer positif.")
+    active_objective = set_objective(objective) if objective is not None else get_objective()
 
     initial_rng = Random(seed)
     population = [generate_initial_state(problem, initial_rng) for _ in range(population_size)]
@@ -100,6 +101,7 @@ def solve(
             "population_size": population_size, "generations": generations,
             "mutation_probability": MUTATION_PROBABILITY,
             "selection": "roulette_wheel", "crossover": "one_point", "elitism": False,
+            "objective": active_objective,
         },
         history=history, initial_population=initial_population,
         final_population=list(population),
