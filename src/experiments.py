@@ -139,13 +139,16 @@ def load_problem(path: str | Path, *, trucks: int | None = None) -> Problem:
 
 def save_state(
     path: str | Path, problem: Problem, state: State, *, seed: int | None = None,
+    objective: str | None = None,
 ) -> None:
     if seed is not None and type(seed) is not int:
         raise ValueError("Seed harus berupa integer atau None.")
+    chosen = get_objective() if objective is None else objective
     snapshot = {
         "problem": problem_to_dict(problem),
         "state": state_to_dict(state),
-        "score": score(problem, state),
+        "score": score(problem, state, objective=chosen),
+        "objective": chosen,
         "seed": seed,
     }
     content = json.dumps(snapshot, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
@@ -157,10 +160,21 @@ def save_state(
 
 def load_state(path: str | Path) -> tuple[Problem, State]:
     with Path(path).open(encoding="utf-8") as handle:
-        snapshot = _object(json.load(handle), {"problem", "state", "score", "seed"}, "snapshot")
+        raw = json.load(handle)
+    keys = {"problem", "state", "score", "seed"}
+    if isinstance(raw, dict) and "objective" in raw:
+        keys.add("objective")
+    snapshot = _object(raw, keys, "snapshot")
     problem = problem_from_dict(snapshot["problem"])
     state = state_from_dict(snapshot["state"])
-    if snapshot["score"] != score(problem, state):
+    if "objective" in snapshot:
+        chosen = snapshot["objective"]
+        if not isinstance(chosen, str) or chosen not in OBJECTIVES:
+            raise ValueError("Objective snapshot tidak dikenal.")
+        if snapshot["score"] != score(problem, state, objective=chosen):
+            raise ValueError("Score snapshot tidak sesuai dengan state dan objective.")
+        set_objective(chosen)
+    elif snapshot["score"] != score(problem, state):
         for name in OBJECTIVES:
             if snapshot["score"] == score(problem, state, objective=name):
                 set_objective(name)
@@ -249,6 +263,7 @@ def save_result(
     directory: str | Path, problem: Problem, result: SearchResult, *, plots: bool = False,
 ) -> None:
     snapshot = {"problem": problem_to_dict(problem), "result": result_to_dict(problem, result)}
+    objective = result.parameters.get("objective", get_objective())
     content = json.dumps(snapshot, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     destination = Path(directory)
     destination.mkdir(parents=True, exist_ok=False)
@@ -261,7 +276,7 @@ def save_result(
             writer.writerows(result.history)
         for name, state in (("initial", result.initial_state), ("final", result.final_state), ("best", result.best_state)):
             if state is not None:
-                save_state(destination / f"{name}.json", problem, state, seed=result.seed)
+                save_state(destination / f"{name}.json", problem, state, seed=result.seed, objective=objective)
         if plots:
             import matplotlib
             matplotlib.use("Agg")
@@ -270,7 +285,7 @@ def save_result(
 
             for name, state in (("initial", result.initial_state), ("final", result.final_state), ("best", result.best_state)):
                 if state is not None:
-                    figure = plot_state(problem, state, title=f"{result.algorithm} — {name} state")
+                    figure = plot_state(problem, state, title=f"{result.algorithm} — {name} state", objective=objective)
                     try:
                         save_figure(figure, destination / f"{name}.png")
                     finally:
