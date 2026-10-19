@@ -37,15 +37,17 @@ def main() -> None:
     visualize.add_argument("--show", action="store_true", help="Buka jendela gambar meskipun memakai --output.")
     run = commands.add_parser("run", help="Jalankan satu algoritma dan simpan hasil.")
     run.add_argument("input", help="Path dataset JSON.")
-    run.add_argument("--algorithm", choices=ALGORITHMS, required=True)
+    run.add_argument("--algorithm", choices=ALGORITHMS, required=True,
+                     help="hc = Steepest Ascent; varian lain: hc_sideways, hc_random_restart, hc_stochastic; sa; ga.")
     run.add_argument("--seed", type=int, default=11)
     run.add_argument("--output", required=True, help="Direktori hasil baru, tidak boleh sudah ada.")
     run.add_argument("--plots", action="store_true", help="Sertakan gambar state dan history; membutuhkan Matplotlib.")
-    run.add_argument("--max-iterations", type=int, default=argparse.SUPPRESS, help="HC/SA: batas iterasi.")
+    run.add_argument("--max-iterations", type=int, default=argparse.SUPPRESS,
+                     help="HC/SA: batas iterasi; Random Restart berlaku per percobaan. Default Stochastic/SA: 1000; HC lain: tanpa batas iterasi.")
     run.add_argument("--max-sideways-moves", type=int, default=argparse.SUPPRESS,
-                     help="HC Sideways: batas sideways berturut-turut, boleh 0.")
+                     help="HC Sideways: batas sideways berturut-turut (default 100); 0 menonaktifkan sideways.")
     run.add_argument("--max-restarts", type=int, default=argparse.SUPPRESS,
-                     help="HC Random Restart: batas restart setelah percobaan awal, boleh 0.")
+                     help="HC Random Restart: batas restart setelah percobaan awal (default 10); 0 berarti hanya percobaan awal.")
     run.add_argument("--initial-temperature", type=float, default=argparse.SUPPRESS, help="SA: suhu awal.")
     run.add_argument("--cooling-rate", type=float, default=argparse.SUPPRESS, help="SA: faktor penurunan suhu.")
     run.add_argument("--min-temperature", type=float, default=argparse.SUPPRESS, help="SA: batas suhu minimum.")
