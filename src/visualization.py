@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from .models import Problem, SearchResult, State
-from .problem import loaded_weight, score
+from .problem import loaded_weight, loaded_weight_for_truck, score, total_capacity
 from .validation import is_inside, oriented_dimensions
 
 
@@ -52,30 +52,44 @@ def _draw_package(ax, package, placement, color) -> None:
 def plot_state(problem: Problem, state: State, title: str = "State paket") -> Figure:
     value = score(problem, state)
     weight = loaded_weight(problem, state)
+    fleet_capacity = total_capacity(problem)
     packages = problem.packages
+    num_trucks = len(problem.trucks)
     colors = {package.id: plt.get_cmap("tab20")(index % 20) for index, package in enumerate(packages)}
     inside = [package for package in packages if is_inside(problem, package, state.placements[package.id])]
     outside = [package for package in packages if package not in inside]
 
+    num_panels = num_trucks + 1
     table_height = max(1.3, 0.3 * (len(packages) + 1))
-    figure = plt.figure(figsize=(15, 6 + table_height), layout="constrained")
-    grid = figure.add_gridspec(2, 2, height_ratios=(5, table_height))
-    truck_ax = figure.add_subplot(grid[0, 0], projection="3d")
-    outside_ax = figure.add_subplot(grid[0, 1], projection="3d")
+    fig_width = max(15, 6 * num_panels)
+    figure = plt.figure(figsize=(fig_width, 6 + table_height), layout="constrained")
+    grid = figure.add_gridspec(2, num_panels, height_ratios=(5, table_height))
     table_ax = figure.add_subplot(grid[1, :])
+
+    fleet_info = f" | Truk: {num_trucks}" if num_trucks > 1 else ""
     figure.suptitle(
-        f"{title}\nScore: {value:g} | Berat: {weight:g} / {problem.truck.max_capacity:g}"
-        f" | Dalam: {len(inside)} | Luar: {len(outside)}",
+        f"{title}\nScore: {value:g} | Berat: {weight:g} / {fleet_capacity:g}"
+        f"{fleet_info} | Dalam: {len(inside)} | Luar: {len(outside)}",
         fontsize=14,
     )
 
-    dimensions = problem.truck.dimensions.as_tuple()
-    _configure_axes(truck_ax, (0, 0, 0), dimensions)
-    _draw_truck(truck_ax, dimensions)
-    truck_ax.set_title(f"Dalam truk — ukuran {dimensions}")
-    for package in inside:
-        _draw_package(truck_ax, package, state.placements[package.id], colors[package.id])
+    for truck_idx, truck in enumerate(problem.trucks):
+        truck_ax = figure.add_subplot(grid[0, truck_idx], projection="3d")
+        dimensions = truck.dimensions.as_tuple()
+        _configure_axes(truck_ax, (0, 0, 0), dimensions)
+        _draw_truck(truck_ax, dimensions)
+        if num_trucks == 1:
+            truck_ax.set_title(f"Dalam truk — ukuran {dimensions}")
+        else:
+            t_weight = loaded_weight_for_truck(problem, state, truck_idx)
+            truck_ax.set_title(
+                f"Truk {truck_idx + 1} — ukuran {dimensions}\nBerat: {t_weight:g} / {truck.max_capacity:g}"
+            )
+        for package in inside:
+            if state.placements[package.id].truck == truck_idx:
+                _draw_package(truck_ax, package, state.placements[package.id], colors[package.id])
 
+    outside_ax = figure.add_subplot(grid[0, num_trucks], projection="3d")
     outside_ax.set_title("Paket di luar — koordinat asli")
     if outside:
         positions = [state.placements[package.id].position for package in outside]
@@ -102,8 +116,12 @@ def plot_state(problem: Problem, state: State, title: str = "State paket") -> Fi
         rows = []
         for package in packages:
             placement = state.placements[package.id]
+            if package in inside:
+                location_label = "Dalam" if num_trucks == 1 else f"Truk {placement.truck + 1}"
+            else:
+                location_label = "Luar"
             rows.append([
-                package.id, "Dalam" if package in inside else "Luar",
+                package.id, location_label,
                 str(placement.position), str(oriented_dimensions(package, placement.orientation)),
                 ",".join(placement.orientation), "Ya" if package.is_fragile else "Tidak",
                 f"{package.value:g}", f"{package.weight:g}", str(package.eta),

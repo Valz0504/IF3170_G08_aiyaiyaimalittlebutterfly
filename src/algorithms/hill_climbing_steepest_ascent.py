@@ -3,7 +3,7 @@ from time import perf_counter
 
 from ..models import Problem, SearchResult, State
 from ..neighbors import iter_neighbors
-from ..problem import generate_initial_state, score
+from ..problem import generate_initial_state, get_objective, score, set_objective
 
 
 def _validate_parameters(seed: int, max_iterations: int | None) -> None:
@@ -45,6 +45,7 @@ def _best_neighbor(
 
 def solve(
     problem: Problem, *, seed: int = 11, max_iterations: int | None = None,
+    objective: str | None = None,
 ) -> SearchResult:
     """Steepest Ascent: pilih neighbor terbaik, terima hanya perbaikan ketat.
 
@@ -57,6 +58,7 @@ def solve(
     terakhir tanpa perpindahan. History iterasi 0 menyimpan score initial state.
     """
     _validate_parameters(seed, max_iterations)
+    active_objective = set_objective(objective) if objective is not None else get_objective()
 
     initial_state = generate_initial_state(problem, Random(seed))
     rng = Random(seed + 1)
@@ -91,6 +93,6 @@ def solve(
         duration_seconds=duration_seconds,
         seed=seed,
         stop_reason=stop_reason,
-        parameters={"max_iterations": max_iterations},
+        parameters={"max_iterations": max_iterations, "objective": active_objective},
         history=history,
     )

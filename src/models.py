@@ -61,12 +61,21 @@ class Truck:
 
 @dataclass(frozen=True)
 class Problem:
-    truck: Truck
-    packages: tuple[Package, ...]
+    truck: Truck | None = None
+    packages: tuple[Package, ...] = ()
+    trucks: tuple[Truck, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.truck, Truck):
+        if self.trucks:
+            trucks = tuple(self.trucks)
+        elif self.truck is not None:
+            trucks = (self.truck,)
+        else:
             raise ValueError("truck harus berupa Truck.")
+        if any(not isinstance(item, Truck) for item in trucks):
+            raise ValueError("trucks harus berisi Truck.")
+        object.__setattr__(self, "trucks", trucks)
+        object.__setattr__(self, "truck", trucks[0])
         object.__setattr__(self, "packages", tuple(self.packages))
         if any(not isinstance(package, Package) for package in self.packages):
             raise ValueError("packages harus berisi Package.")
@@ -78,6 +87,7 @@ class Problem:
 class Placement:
     position: Position
     orientation: Orientation = ("x", "y", "z")
+    truck: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.position, (tuple, list)) or len(self.position) != 3:
@@ -86,6 +96,8 @@ class Placement:
             raise ValueError("Koordinat harus berupa bilangan bulat.")
         if not isinstance(self.orientation, (tuple, list)):
             raise ValueError("Orientasi harus berupa pemetaan sumbu untuk w, l, h.")
+        if type(self.truck) is not int or self.truck < 0:
+            raise ValueError("Indeks truk harus berupa bilangan bulat nonnegatif.")
         object.__setattr__(self, "position", tuple(self.position))
         object.__setattr__(self, "orientation", tuple(self.orientation))
         if self.orientation not in ORIENTATIONS:

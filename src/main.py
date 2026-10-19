@@ -6,7 +6,10 @@ from random import Random
 from .algorithms import ALGORITHMS
 from .experiments import load_problem, load_state, save_result, save_state
 from .models import Problem, State
-from .problem import generate_initial_state, loaded_weight, score
+from .problem import (
+    OBJECTIVES, generate_initial_state, loaded_weight,
+    loaded_weight_for_truck, score, set_objective, total_capacity,
+)
 from .validation import is_inside
 
 
@@ -16,8 +19,18 @@ def _print_summary(problem: Problem, state: State) -> None:
         for package in problem.packages
     )
     print("State valid.")
+    if len(problem.trucks) > 1:
+        print(f"Jumlah truk: {len(problem.trucks)}")
+        for idx, truck in enumerate(problem.trucks):
+            count_t = sum(
+                state.placements[package.id].truck == idx
+                and is_inside(problem, package, state.placements[package.id])
+                for package in problem.packages
+            )
+            weight_t = loaded_weight_for_truck(problem, state, idx)
+            print(f"  Truk {idx + 1}: {count_t} paket, berat {weight_t} / {truck.max_capacity}")
     print(f"Paket di dalam: {loaded}; di luar: {len(problem.packages) - loaded}")
-    print(f"Berat: {loaded_weight(problem, state)} / {problem.truck.max_capacity}")
+    print(f"Berat: {loaded_weight(problem, state)} / {total_capacity(problem)}")
     print(f"Score: {score(problem, state)}")
 
 
@@ -27,11 +40,19 @@ def main() -> None:
     initial = commands.add_parser("init", help="Buat initial state acak yang valid.")
     initial.add_argument("input", help="Path dataset JSON.")
     initial.add_argument("--seed", type=int, default=11)
+    initial.add_argument("--trucks", type=int, default=None,
+                         help="Jumlah truk dalam armada (default mengikuti dataset JSON).")
+    initial.add_argument("--objective", choices=OBJECTIVES, default="default",
+                         help="Fungsi objective: default (total value) atau bonus (multi-faktor logistik).")
     initial.add_argument("--output", help="Simpan snapshot ke file JSON baru.")
     validate = commands.add_parser("validate", help="Periksa snapshot state tersimpan.")
     validate.add_argument("state", help="Path snapshot JSON hasil init.")
+    validate.add_argument("--objective", choices=OBJECTIVES, default="default",
+                          help="Fungsi objective awal sebelum deteksi otomatis snapshot.")
     visualize = commands.add_parser("visualize", help="Tampilkan atau simpan visualisasi state.")
     visualize.add_argument("state", help="Path snapshot JSON hasil init atau state akhir.")
+    visualize.add_argument("--objective", choices=OBJECTIVES, default="default",
+                           help="Fungsi objective awal sebelum deteksi otomatis snapshot.")
     visualize.add_argument("--output", help="Simpan gambar, misalnya output/scratch/initial.png.")
     visualize.add_argument("--title", default="State paket")
     visualize.add_argument("--show", action="store_true", help="Buka jendela gambar meskipun memakai --output.")
@@ -39,6 +60,10 @@ def main() -> None:
     run.add_argument("input", help="Path dataset JSON.")
     run.add_argument("--algorithm", choices=ALGORITHMS, required=True,
                      help="hc = Steepest Ascent; varian lain: hc_sideways, hc_random_restart, hc_stochastic; sa; ga.")
+    run.add_argument("--trucks", type=int, default=None,
+                     help="Jumlah truk dalam armada (default mengikuti dataset JSON).")
+    run.add_argument("--objective", choices=OBJECTIVES, default="default",
+                     help="Fungsi objective: default (total value) atau bonus (multi-faktor logistik).")
     run.add_argument("--seed", type=int, default=11)
     run.add_argument("--output", required=True, help="Direktori hasil baru, tidak boleh sudah ada.")
     run.add_argument("--plots", action="store_true", help="Sertakan gambar state dan history; membutuhkan Matplotlib.")
@@ -56,8 +81,11 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        set_objective(args.objective)
         if args.command == "init":
-            problem = load_problem(args.input)
+            if args.trucks is not None and args.trucks <= 0:
+                parser.error("--trucks harus lebih besar dari 0.")
+            problem = load_problem(args.input, trucks=args.trucks)
             state = generate_initial_state(problem, Random(args.seed))
             if args.output:
                 save_state(args.output, problem, state, seed=args.seed)
@@ -68,11 +96,13 @@ def main() -> None:
             problem, state = load_state(args.state)
             _print_summary(problem, state)
         elif args.command == "run":
+            if args.trucks is not None and args.trucks <= 0:
+                parser.error("--trucks harus lebih besar dari 0.")
             solve = ALGORITHMS[args.algorithm]
             parameters = {key: value for key, value in vars(args).items() if key in (
                 "max_iterations", "initial_temperature", "cooling_rate",
                 "min_temperature", "population_size", "generations",
-                "max_sideways_moves", "max_restarts",
+                "max_sideways_moves", "max_restarts", "objective",
             )}
             try:
                 signature(solve).bind(None, seed=args.seed, **parameters)
@@ -98,8 +128,10 @@ def main() -> None:
                     import matplotlib
                 except ModuleNotFoundError:
                     parser.error("Instal Matplotlib terlebih dahulu: python -m pip install -r requirements.txt")
-            problem = load_problem(args.input)
+            problem = load_problem(args.input, trucks=args.trucks)
             result = solve(problem, seed=args.seed, **parameters)
+            if len(problem.trucks) > 1:
+                result.parameters["trucks"] = len(problem.trucks)
             save_result(args.output, problem, result, plots=args.plots)
             _print_summary(problem, result.final_state)
             print(f"Iterasi: {result.iterations}; durasi: {result.duration_seconds:.3f} s")
