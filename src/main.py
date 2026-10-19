@@ -37,11 +37,17 @@ def main() -> None:
     visualize.add_argument("--show", action="store_true", help="Buka jendela gambar meskipun memakai --output.")
     run = commands.add_parser("run", help="Jalankan satu algoritma dan simpan hasil.")
     run.add_argument("input", help="Path dataset JSON.")
-    run.add_argument("--algorithm", choices=ALGORITHMS, required=True)
+    run.add_argument("--algorithm", choices=ALGORITHMS, required=True,
+                     help="hc = Steepest Ascent; varian lain: hc_sideways, hc_random_restart, hc_stochastic; sa; ga.")
     run.add_argument("--seed", type=int, default=11)
     run.add_argument("--output", required=True, help="Direktori hasil baru, tidak boleh sudah ada.")
     run.add_argument("--plots", action="store_true", help="Sertakan gambar state dan history; membutuhkan Matplotlib.")
-    run.add_argument("--max-iterations", type=int, default=argparse.SUPPRESS, help="HC/SA: batas iterasi.")
+    run.add_argument("--max-iterations", type=int, default=argparse.SUPPRESS,
+                     help="HC/SA: batas iterasi; Random Restart berlaku per percobaan. Default Stochastic/SA: 1000; HC lain: tanpa batas iterasi.")
+    run.add_argument("--max-sideways-moves", type=int, default=argparse.SUPPRESS,
+                     help="HC Sideways: batas sideways berturut-turut (default 100); 0 menonaktifkan sideways.")
+    run.add_argument("--max-restarts", type=int, default=argparse.SUPPRESS,
+                     help="HC Random Restart: batas restart setelah percobaan awal (default 10); 0 berarti hanya percobaan awal.")
     run.add_argument("--initial-temperature", type=float, default=argparse.SUPPRESS, help="SA: suhu awal.")
     run.add_argument("--cooling-rate", type=float, default=argparse.SUPPRESS, help="SA: faktor penurunan suhu.")
     run.add_argument("--min-temperature", type=float, default=argparse.SUPPRESS, help="SA: batas suhu minimum.")
@@ -66,6 +72,7 @@ def main() -> None:
             parameters = {key: value for key, value in vars(args).items() if key in (
                 "max_iterations", "initial_temperature", "cooling_rate",
                 "min_temperature", "population_size", "generations",
+                "max_sideways_moves", "max_restarts",
             )}
             try:
                 signature(solve).bind(None, seed=args.seed, **parameters)
@@ -74,6 +81,9 @@ def main() -> None:
             for name in ("max_iterations", "population_size", "generations"):
                 if name in parameters and parameters[name] <= 0:
                     parser.error(f"{name} harus lebih besar dari 0.")
+            for name in ("max_sideways_moves", "max_restarts"):
+                if name in parameters and parameters[name] < 0:
+                    parser.error(f"{name} harus berupa integer nonnegatif.")
             for name in ("initial_temperature", "min_temperature"):
                 if name in parameters and not 0 < parameters[name] < float("inf"):
                     parser.error(f"{name} harus positif dan berhingga.")
@@ -94,6 +104,11 @@ def main() -> None:
             _print_summary(problem, result.final_state)
             print(f"Iterasi: {result.iterations}; durasi: {result.duration_seconds:.3f} s")
             print(f"Berhenti: {result.stop_reason}")
+            if result.algorithm == "hc_random_restart":
+                print(f"Restart: {result.metrics['restarts']}")
+                print(f"Iterasi per percobaan (awal, lalu restart): {result.metrics['iterations_per_restart']}")
+            elif result.algorithm == "hc_sideways":
+                print(f"Total sideways move: {result.metrics['sideways_moves']}")
             print(f"Hasil disimpan: {args.output}")
         else:
             problem, state = load_state(args.state)

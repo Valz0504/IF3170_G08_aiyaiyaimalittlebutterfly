@@ -1,9 +1,46 @@
 from random import Random
 from time import perf_counter
 
-from ..models import Problem, SearchResult
+from ..models import Problem, SearchResult, State
 from ..neighbors import iter_neighbors
 from ..problem import generate_initial_state, score
+
+
+def _validate_parameters(seed: int, max_iterations: int | None) -> None:
+    if type(seed) is not int:
+        raise ValueError("Seed harus berupa integer.")
+    if max_iterations is not None and (
+        type(max_iterations) is not int or max_iterations <= 0
+    ):
+        raise ValueError("max_iterations harus berupa integer positif atau None.")
+
+
+def _nonnegative_limit(value: int, name: str) -> None:
+    if type(value) is not int or value < 0:
+        raise ValueError(f"{name} harus berupa integer nonnegatif.")
+
+
+def _best_neighbor(
+    problem: Problem, current: State, current_score: int | float, rng: Random,
+    *, allow_sideways: bool = False,
+) -> tuple[State | None, int | float]:
+    """Reservoir sampling atas kandidat terbaik; tidak menyimpan semua neighbor."""
+    best_neighbor = None
+    best_score = current_score
+    tied_best = 0
+    for neighbor in iter_neighbors(problem, current):
+        if neighbor == current:
+            continue
+        neighbor_score = score(problem, neighbor)
+        if neighbor_score > best_score:
+            best_neighbor = neighbor
+            best_score = neighbor_score
+            tied_best = 1
+        elif neighbor_score == best_score and (best_neighbor is not None or allow_sideways):
+            tied_best += 1
+            if rng.randrange(tied_best) == 0:
+                best_neighbor = neighbor
+    return best_neighbor, best_score
 
 
 def solve(
@@ -19,12 +56,7 @@ def solve(
     Satu iterasi adalah satu pemeriksaan seluruh neighbor, termasuk pemeriksaan
     terakhir tanpa perpindahan. History iterasi 0 menyimpan score initial state.
     """
-    if type(seed) is not int:
-        raise ValueError("Seed harus berupa integer.")
-    if max_iterations is not None and (
-        type(max_iterations) is not int or max_iterations <= 0
-    ):
-        raise ValueError("max_iterations harus berupa integer positif atau None.")
+    _validate_parameters(seed, max_iterations)
 
     initial_state = generate_initial_state(problem, Random(seed))
     rng = Random(seed + 1)
@@ -37,20 +69,7 @@ def solve(
     stop_reason = "max_iterations"
 
     while max_iterations is None or iterations < max_iterations:
-        best_neighbor = None
-        best_score = current_score
-        tied_best = 0
-
-        for neighbor in iter_neighbors(problem, current):
-            neighbor_score = score(problem, neighbor)
-            if neighbor_score > best_score:
-                best_neighbor = neighbor
-                best_score = neighbor_score
-                tied_best = 1
-            elif best_neighbor is not None and neighbor_score == best_score:
-                tied_best += 1
-                if rng.randrange(tied_best) == 0:
-                    best_neighbor = neighbor
+        best_neighbor, best_score = _best_neighbor(problem, current, current_score, rng)
 
         iterations += 1
         if best_neighbor is not None:

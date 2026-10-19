@@ -26,6 +26,24 @@ Steepest Ascent Hill Climbing:
 python -m src.main run <dataset.json> --algorithm hc --seed <seed> --output <folder-output> --plots
 ```
 
+Hill Climbing dengan Sideways Move:
+
+```bash
+python -m src.main run <dataset.json> --algorithm hc_sideways --seed <seed> --max-sideways-moves <batas-sideways> --output <folder-output> --plots
+```
+
+Hill Climbing dengan Random Restart:
+
+```bash
+python -m src.main run <dataset.json> --algorithm hc_random_restart --seed <seed> --max-restarts <batas-restart> --output <folder-output> --plots
+```
+
+Stochastic Hill Climbing:
+
+```bash
+python -m src.main run <dataset.json> --algorithm hc_stochastic --seed <seed> --max-iterations <batas-iterasi> --output <folder-output> --plots
+```
+
 Simulated Annealing:
 
 ```bash
@@ -41,7 +59,9 @@ python -m src.main run <dataset.json> --algorithm ga --seed <seed> --population-
 Keterangan parameter:
 
 - `<seed>`: bilangan bulat untuk mengatur pengacakan. Initial state dibuat otomatis.
-- `<batas-iterasi>`: jumlah iterasi maksimum, berupa bilangan bulat positif. HC juga menerima opsi `--max-iterations <batas-iterasi>`.
+- `<batas-iterasi>`: bilangan bulat positif. Bisa digunakan pada semua HC dan SA; pada Random Restart, batas ini berlaku per percobaan. Stochastic/SA default 1000, HC lain tanpa batas iterasi.
+- `<batas-sideways>`: batas perpindahan dengan score sama secara berturut-turut, berupa bilangan bulat nonnegatif (default 100). Hitungan direset saat score meningkat; 0 menonaktifkan sideways.
+- `<batas-restart>`: jumlah maksimum pengulangan setelah percobaan awal, berupa bilangan bulat nonnegatif (default 10). Nilai 0 hanya menjalankan percobaan awal; nilai 3 berarti maksimal 4 percobaan.
 - `<suhu-awal>`: suhu awal SA, harus positif.
 - `<faktor-pendinginan>`: pengali suhu tiap iterasi SA, harus lebih dari 0 dan kurang dari 1.
 - `<suhu-minimum>`: batas suhu SA, harus positif dan lebih kecil dari suhu awal. SA berhenti jika suhu sudah di bawah batas ini.
@@ -57,6 +77,17 @@ tidak diabaikan Git.
 
 Pada SA, `final.json` berisi state terakhir dan `best.json` berisi state terbaik
 yang ditemukan. Hitungan stuck dimulai dari state setelah langkah pertama.
+
+Pada Random Restart, `final.json` dan `best.json` berisi state terbaik dari
+seluruh percobaan. Jumlah restart dan iterasi per percobaan tercatat di `run.json`
+serta ditampilkan di terminal. Pencarian bisa berhenti lebih awal jika total value
+seluruh paket sudah tercapai.
+
+Stochastic memilih satu kandidat acak per iterasi dan hanya menerima perbaikan.
+Pencarian berhenti pada batas iterasi; kandidat yang ditolak atau gagal ditemukan
+tetap dihitung satu iterasi. Pada Steepest Ascent, Sideways, dan Random Restart,
+satu iterasi adalah satu pemeriksaan seluruh neighbor, termasuk pemeriksaan
+terakhir tanpa perpindahan.
 
 ## Memeriksa dan menampilkan hasil
 
