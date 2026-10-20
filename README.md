@@ -1,5 +1,16 @@
 # aiyaiyaimalittlebutterfly
 
+## Deskripsi Singkat
+
+Repository ini berisi implementasi berbagai algoritma **Local Search** untuk menyelesaikan persoalan optimasi penataan paket tiga dimensi (*3D Container Loading Problem*) pada truk logistik **Mejiro Express** dalam rangka pemenuhan **Tugas Besar 1 IF3170 Inteligensi Artifisial**. Program mencari konfigurasi posisi $(x, y, z)$ dan orientasi rotasi paket yang valid (tanpa tumpang-tindih, tidak melebihi dimensi dan kapasitas berat truk, tidak melayang, serta tidak menumpuk beban di atas paket *fragile*) guna memaksimalkan nilai fungsi objektif.
+
+Algoritma dan fitur yang diimplementasikan meliputi:
+- **Hill-Climbing Search**: *Steepest Ascent Hill-Climbing*, *Hill-Climbing with Sideways Move*, *Random Restart Hill-Climbing*, dan *Stochastic Hill-Climbing*.
+- **Simulated Annealing (SA)**.
+- **Genetic Algorithm (GA)**.
+- **Fitur Bonus**: Fungsi objektif tambahan multifaktor logistik (`--objective bonus` yang memperhitungkan nilai paket, prioritas bongkar-muat `eta`, titik berat `weight`, dan rasio luas tumpuan alas) serta dukungan untuk banyak truk (*Multi-Truck* melalui `--trucks`).
+- **Visualisasi 3D & Plot Konvergensi**: Pembuatan grafik kontainer 3D (`initial.png`, `final.png`, `best.png`) dan grafik riwayat pencarian (`history.png`).
+
 ## Setup
 
 Gunakan Python **3.11 atau lebih baru**. Jalankan dari root repository:
@@ -68,7 +79,7 @@ Keterangan parameter:
 - `<jumlah-populasi>`: jumlah individu GA, berupa bilangan bulat positif.
 - `<jumlah-generasi>`: jumlah generasi GA, berupa bilangan bulat positif.
 - `--objective <default|bonus>`: pilihan fungsi objective (default: `default` berupa total value paket di dalam truk; `bonus` berupa multifaktor logistik yang menggabungkan total value, kesesuaian posisi `y` terhadap `eta`, stabilitas titik berat `weight` terhadap `z`, dan rasio luas tumpuan alas).
-- `--trucks <jumlah-truk>`: jumlah truk dalam armada (bilangan bulat positif, opsional). Jika diberikan, jumlah truk pada dataset akan direplikasi/disesuaikan menjadi `<jumlah-truk>` truk. Armada multi-truk juga dapat didefinisikan langsung di file JSON melalui key `"trucks": [...]` atau `"count"` pada objek `"truck"`.
+- `--trucks <jumlah-truk>`: jumlah truk (bilangan bulat positif, opsional). Jika diberikan, jumlah truk pada dataset akan direplikasi/disesuaikan menjadi `<jumlah-truk>` truk. Banyak multitruk juga dapat didefinisikan langsung di file JSON melalui key `"trucks": [...]` atau `"count"` pada objek `"truck"`.
 
 Gunakan direktori output baru setiap run. Hasil berisi `run.json`, `history.csv`,
 `initial.json`, dan `final.json`. Opsi `--plots` menyertakan gambar state dan grafik
@@ -115,3 +126,11 @@ python -m src.main init <dataset.json> --seed <seed> --output <initial.json>
 ```
 
 Daftar parameter tersedia melalui `python -m src.main run --help`.
+
+## Pembagian Tugas Anggota Kelompok
+
+| NIM | Nama | Tugas |
+| :---: | :--- | :--- |
+| 13524019 | Kevin Wirya Valerian | <ul><li>Simulated Annealing</li><li>Fungsi Objektif Tambahan</li><li>Multitruck</li></ul> |
+| 13524043 | Emilio Justin | <ul><li>Setup project</li><li>Visualization, models, validation, problem, neighbors</li><li>Genetic Algorithm</li><li>Integration</li></ul> |
+| 13524046 | Farrell Limjaya | <ul><li>Hill-Climbing Search (steepest-ascent, sideways, random restart, stochastic)</li></ul> ||
